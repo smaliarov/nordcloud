@@ -1,8 +1,9 @@
-***************
-Notejam: Spring
-***************
+*********************
+Notejam: Spring & AWS
+*********************
 
 Notejam application implemented using `Spring <http://projects.spring.io/spring-framework/>`_ framework.
+Adjust for AWS deployment.
 
 Spring version: 4.2.3
 
@@ -15,8 +16,8 @@ The full stack is:
 - `Spring Data <http://projects.spring.io/spring-data/>`_ (Persistence abstraction)
 - `JPA <http://www.oracle.com/technetwork/java/javaee/tech/persistence-jsp-140049.html>`_ (Persistence API)
 - `Hibernate <http://hibernate.org/orm/>`_ (JPA implementation)
-
-The application is maintained by `@malkusch <https://github.com/malkusch>`_.
+- `Terraform`_ (Infrastructure creation)
+- `AWS CodePipeline`_ (CI/CD)
 
 ==========================
 Installation and launching
@@ -36,7 +37,7 @@ Clone the repo:
 Install
 -------
 
-Install a `JDK <http://openjdk.java.net/>`_ and `Maven <https://maven.apache.org/>`_.
+Install a `JDK <http://openjdk.java.net/>`_, `Maven <https://maven.apache.org/>`_ and `Terraform <https://www.terraform.io/>`_.
 
 -------------
 Configuration

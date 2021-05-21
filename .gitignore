@@ -1,3 +1,10 @@
 /target/
 db.*
 application.properties
+/.idea/
+*.iml
+/terraform/secrets.json
+/terraform/terraform.tfstate
+/terraform/terraform.tfstate.backup
+/terraform/.terraform/
+/terraform/.terraform.lock.hcl
