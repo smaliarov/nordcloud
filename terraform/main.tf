@@ -18,6 +18,38 @@ provider "aws" {
 locals {
   secrets_json = file("${path.module}/secrets.json")
   secrets = jsondecode(local.secrets_json)
+
+  container_environment = [
+    {
+      name  = "db"
+      value = module.rds_instance.instance_endpoint
+    },
+    {
+      name  = "server_port"
+      value = var.container_port
+    }
+  ]
+
+  environment_variables = [
+    {
+      name  = "REPO_URI"
+      value = module.ecr.repository_url
+      type = "PLAINTEXT"
+    },
+    {
+      name  = "CONTAINER_NAME"
+      value = var.container_name
+      type = "PLAINTEXT"
+    }
+  ]
+
+  container_port_mappings = [
+    {
+      containerPort = var.container_port
+      hostPort      = var.container_port
+      protocol      = "tcp"
+    }
+  ]
 }
 
 
@@ -87,35 +119,57 @@ resource "aws_ecs_cluster" "default" {
   tags = module.label.tags
 }
 
-locals {
-  container_environment = [
-    {
-      name  = "db"
-      value = module.rds_instance.hostname
-    }
-  ]
+module "alb" {
+  source                                  = "git::https://github.com/cloudposse/terraform-aws-alb?ref=master"
+  namespace                               = var.namespace
+  stage                                   = var.stage
+  name                                    = var.name
+  vpc_id                                  = module.vpc.vpc_id
+  security_group_ids                      = [module.vpc.vpc_default_security_group_id]
+  subnet_ids                              = module.subnets.public_subnet_ids
+  internal                                = false
+  http_enabled                            = true
+  access_logs_enabled                     = false
+  cross_zone_load_balancing_enabled       = true
+  http2_enabled                           = true
+  target_group_port                       = var.container_port
+  stickiness                              = {
+    enabled = true
+    cookie_duration = 60
+  }
+  target_group_name = var.name
+  security_group_enabled = false
+}
+
+module "ecr" {
+  source = "git::https://github.com/cloudposse/terraform-aws-ecr?ref=master"
+
+  namespace                               = var.namespace
+  stage                                   = var.stage
+  name                                    = var.name
 }
 
 module "container_definition" {
-  source                       = "git::https://github.com/cloudposse/terraform-aws-ecs-container-definition.git?ref=master"
+  source  = "git::https://github.com/cloudposse/terraform-aws-ecs-container-definition?ref=master"
+
   container_name               = var.container_name
-  container_image              = var.container_image
+  container_image              = module.ecr.repository_url
   container_memory             = var.container_memory
   container_memory_reservation = var.container_memory_reservation
   container_cpu                = var.container_cpu
   essential                    = var.container_essential
   readonly_root_filesystem     = var.container_readonly_root_filesystem
   environment                  = local.container_environment
-  port_mappings                = var.container_port_mappings
+  port_mappings                = local.container_port_mappings
 }
 
 module "ecs_alb_service_task" {
-  source                             = "git::https://github.com/cloudposse/terraform-aws-ecs-alb-service-task.git?ref=master"
-  namespace                          = var.namespace
-  stage                              = var.stage
-  name                               = var.name
-  attributes                         = var.attributes
-  delimiter                          = var.delimiter
+  source                             = "git::https://github.com/cloudposse/terraform-aws-ecs-alb-service-task?ref=master"
+
+  namespace                               = var.namespace
+  stage                                   = var.stage
+  name                                    = var.name
+
   alb_security_group                 = module.vpc.vpc_default_security_group_id
   container_definition_json          = module.container_definition.json_map_encoded_list
   ecs_cluster_arn                    = aws_ecs_cluster.default.arn
@@ -123,7 +177,6 @@ module "ecs_alb_service_task" {
   vpc_id                             = module.vpc.vpc_id
   security_group_ids                 = [module.vpc.vpc_default_security_group_id]
   subnet_ids                         = module.subnets.public_subnet_ids
-  tags                               = var.tags
   ignore_changes_task_definition     = var.ignore_changes_task_definition
   network_mode                       = var.network_mode
   assign_public_ip                   = var.assign_public_ip
@@ -134,6 +187,16 @@ module "ecs_alb_service_task" {
   desired_count                      = var.desired_count
   task_memory                        = var.task_memory
   task_cpu                           = var.task_cpu
+
+
+  ecs_load_balancers                 = [
+    {
+      elb_name         = ""
+      container_name   = var.container_name
+      container_port   = var.container_port
+      target_group_arn = module.alb.default_target_group_arn
+    }
+  ]
 }
 
 module "ecs_codepipeline" {
@@ -157,7 +220,7 @@ module "ecs_codepipeline" {
   image_tag               = var.image_tag
   webhook_enabled         = var.webhook_enabled
   s3_bucket_force_destroy = var.s3_bucket_force_destroy
-  environment_variables   = var.environment_variables
+  environment_variables   = local.environment_variables
   ecs_cluster_name        = aws_ecs_cluster.default.name
   service_name            = module.ecs_alb_service_task.service_name
 }

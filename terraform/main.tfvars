@@ -2,11 +2,11 @@ region = "eu-west-1"
 
 availability_zones = ["eu-west-1a", "eu-west-1b"]
 
-namespace = "nordcloud"
+namespace = "smaliarov"
 
 stage = "test"
 
-name = "ecs-codepipeline"
+name = "nordcloud"
 
 vpc_cidr_block = "10.0.0.0/16"
 
@@ -32,9 +32,7 @@ task_memory = 512
 
 task_cpu = 256
 
-container_name = "geodesic"
-
-container_image = "cloudposse/geodesic"
+container_name = "nordcloud"
 
 container_memory = 256
 
@@ -46,13 +44,7 @@ container_essential = true
 
 container_readonly_root_filesystem = false
 
-container_port_mappings = [
-  {
-    containerPort = 8080
-    hostPort      = 8080
-    protocol      = "tcp"
-  }
-]
+container_port = 8080
 
 repo_owner = "smaliarov"
 
