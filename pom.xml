@@ -121,40 +121,6 @@
 					</dependency>
 				</dependencies>
 			</plugin>
-
-			<plugin>
-				<groupId>io.fabric8</groupId>
-				<artifactId>docker-maven-plugin</artifactId>
-				<configuration>
-					<images>
-						<image>
-							<name>hello/sub/project/java:${project.version}</name>
-							<alias>hello-world</alias>
-							<build>
-								<from>openjdk:latest</from>
-								<assembly>
-									<descriptorRef>artifact</descriptorRef>
-								</assembly>
-								<cmd>java -jar maven/${project.name}-${project.version}.jar</cmd>
-							</build>
-							<run>
-								<wait>
-									<log>Hello World!</log>
-								</wait>
-							</run>
-						</image>
-					</images>
-				</configuration>
-				<executions>
-					<execution>
-						<id>docker:start</id>
-						<phase>install</phase>
-						<goals>
-							<goal>run</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
 		</plugins>
 	</build>
 
