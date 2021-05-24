@@ -52,7 +52,7 @@ repo_name = "nordcloud"
 
 branch = "master"
 
-build_image = "aws/codebuild/docker:17.09.0"
+build_image = "aws/codebuild/docker:21.04.23"
 
 build_compute_type = "BUILD_GENERAL1_SMALL"
 
