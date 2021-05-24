@@ -160,6 +160,8 @@ data "aws_ami" "ecs_ami" {
 }
 
 resource "aws_security_group" "egress" {
+  description = "Allow all outbound traffic"
+
   egress {
     from_port        = 0
     to_port          = 0
