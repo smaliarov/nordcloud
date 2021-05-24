@@ -10,6 +10,9 @@ phases:
     commands:
       - echo Build started on `date`
       - echo Building the Java application...
+      - set JAVA_HOME="$JAVA_8_HOME"
+      - set JDK_HOME="$JDK_8_HOME"
+      - set JRE_HOME="$JRE_8_HOME"
       - mvn clean package
       - echo Building the Docker image...
       - docker pull $REPO_URI:latest || true
