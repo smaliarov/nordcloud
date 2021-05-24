@@ -32,18 +32,13 @@ locals {
 
   environment_variables = [
     {
-      name  = "REPO_URI"
-      value = module.ecr.repository_url
+      name  = "DOCKER_REPO_NAME"
+      value = module.ecr.repository_name
       type = "PLAINTEXT"
     },
     {
       name  = "CONTAINER_NAME"
       value = var.container_name
-      type = "PLAINTEXT"
-    },
-    {
-      name  = "AWS_DEFAULT_REGION"
-      value = var.region
       type = "PLAINTEXT"
     }
   ]

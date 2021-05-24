@@ -288,3 +288,8 @@ variable "container_port" {
   type = number
   description = "Container port"
 }
+
+variable "aws_account_id" {
+  type = number
+  description = "AWS Account ID"
+}

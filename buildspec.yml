@@ -7,22 +7,22 @@ phases:
     commands:
       - echo Logging in to Amazon ECR...
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-      - IMAGE_ID=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
-      - echo IMAGE_ID is $IMAGE_ID
+      - DOCKER_IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - DOCKER_IMAGE_ID=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$DOCKER_REPO_NAME:$DOCKER_IMAGE_TAG
+      - echo DOCKER_IMAGE_ID is $DOCKER_IMAGE_ID
   build:
     commands:
       - echo Build started on `date`
       - echo Building the Java application...
       - mvn -q clean package
       - echo Building the Docker image...
-      - docker build -t $IMAGE_ID .
+      - docker build -t $DOCKER_IMAGE_ID .
   post_build:
     commands:
       - echo Build completed on `date`
       - echo Pushing the Docker images...
-      - docker push $IMAGE_ID
+      - docker push $DOCKER_IMAGE_ID
       - echo Writing image definitions file...
-      - printf '[{"name":"%s","imageUri":"%s"}]' "$CONTAINER_NAME" "$IMAGE_ID" | tee imagedefinitions.json
+      - printf '[{"name":"%s","imageUri":"%s"}]' "$CONTAINER_NAME" "$DOCKER_IMAGE_ID" | tee imagedefinitions.json
 artifacts:
   files: imagedefinitions.json
