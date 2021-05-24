@@ -31,13 +31,13 @@ Clone the repo:
 
 .. code-block:: bash
 
-    $ git clone https://github.com/komarserjio/notejam YOUR_PROJECT_DIR/
+    $ git clone https://github.com/smaliarov/nordcloud YOUR_PROJECT_DIR/
 
 -------
 Install
 -------
 
-Install a `JDK <http://openjdk.java.net/>`_, `Maven <https://maven.apache.org/>`_ and `Terraform <https://www.terraform.io/>`_.
+Install a `JDK <http://openjdk.java.net/>`_, `Maven <https://maven.apache.org/>`_ and `Terraform <https://www.terraform.io/>`_ (for cloud deployment).
 
 -------------
 Configuration
@@ -55,9 +55,11 @@ and set there the property spring.mail.host to your SMTP server (e.g. spring.mai
 See `MailProperties <http://docs.spring.io/spring-boot/docs/current/api/index.html?org/springframework/boot/autoconfigure/mail/MailProperties.html>`_
 for more mail properties.
 
-------
-Launch
-------
+This has not been enabled for cloud deployment.
+
+--------------
+Launch locally
+--------------
 
 Compile and launch the application:
 
@@ -85,20 +87,62 @@ Run functional and unit tests:
 
 .. code-block:: bash
 
-    $ cd YOUR_PROJECT_DIR/spring/
     $ mvn test
 
-============
-Contribution
-============
+================
+Launch in cloud
+================
 
-Do you have Java/Spring experience? Help the application to follow Java and Spring best practices.
+This implementation uses Terraform for deployments. You can launch it from your local machine.
 
-Please send your pull requests in the ``master`` branch.
-Always prepend your commits with framework name:
+First, navigate to terraform folder.
 
 .. code-block:: bash
 
-    Spring: Implement sign in functionality
+    $ cd terraform/
 
-Read `contribution guide <https://github.com/komarserjio/notejam/blob/master/contribute.rst>`_ for details.
+Second, modify main.tfvars if needed. See description of all variables at variables.tf
+
+Third, make a copy of secrets.json.example and name it secrets.json.
+It's a very basic (and somewhat stupid) way of keeping private data (passwords and tokens) out of git.
+
+Now, you need to be logged in to AWS with some user that will allow you to create all needed infrastructure. For the sake of time, I used an admin user with full access. Never do that on production!
+
+When your config is ready and you have proper AWS credentials available on your machine, run something like
+
+.. code-block:: bash
+
+    $ terraform apply -var-file=main.tfvars -auto-approve
+
+It will take some time to create all needed resources. Remember, you can easily delete all at once using terraform destroy command.
+
+================
+Choices made
+================
+
+1. Docker to pack the application into container.
+2. External database (RDS).
+3. Terraform so that I have infrastructure as code. Why Terraform? I have more experience with Terraform than with Ansible. I somehow like Ansible somewhat better but I thought it would be faster with Terraform.
+4. ECS to run services. An alternative would be EKS, but I think that for this example ECS is simpler and easier to use.
+5. I didn't connect a domain name. In this case, there should be a Route53 alias record pointing to ALB.
+
+================
+Shortcuts taken
+================
+
+Oh, where do I start...
+
+- database password should not be stored as an environment variable. It should be stored in Parameter Store or (better) in AWS Secrets Manager (with automatic rotation).
+- there should be at least 2 EC2 instances running at any time. RDS should also run in a cluster mode.
+- EC2 instances created in public subnets. Should be in private.
+
+
+=====================
+Further improvements
+=====================
+
+0. Of course, fix all shortcuts I've taken.
+1. Separate backend and frontend. You could have nicer frontend with all modern features built with Angular or React. Then backend would be able to serve more requests (because it doesn't need to serve static files like CSS or render HTML).
+For this, you'll need slightly different deployment. I would deploy static files to an S3 bucket, backend would be served from ECS, then put a CloudFront distribution in front.
+2. Extract email sender to a separate service that would get tasks from SQS. It will bring a lot of benefits like lesser load on backend, automatic retries, better visibility of errors there, etc.
+3. Split backend into microservices - note, pad, user.
