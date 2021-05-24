@@ -40,6 +40,11 @@ locals {
       name  = "CONTAINER_NAME"
       value = var.container_name
       type = "PLAINTEXT"
+    },
+    {
+      name  = "AWS_DEFAULT_REGION"
+      value = var.region
+      type = "PLAINTEXT"
     }
   ]
 

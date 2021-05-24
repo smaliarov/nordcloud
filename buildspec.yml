@@ -13,7 +13,7 @@ phases:
     commands:
       - echo Build started on `date`
       - echo Building the Java application...
-      - mvn clean package
+      - mvn -q clean package
       - echo Building the Docker image...
       - docker pull $REPO_URI:latest || true
       - docker build --cache-from $REPO_URI:latest --tag $REPO_URI:latest --tag $REPO_URI:$IMAGE_TAG .
