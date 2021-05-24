@@ -70,9 +70,6 @@ webhook_enabled = false
 
 s3_bucket_force_destroy = true
 
-environment_variables = [
-]
-
 db_deletion_protection = false
 
 database_name = "notejam"
