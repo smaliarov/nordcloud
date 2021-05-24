@@ -309,11 +309,6 @@ variable "min_size" {
   description = "The minimum size of the autoscale group"
 }
 
-variable "image_id" {
-  type        = string
-  description = "The EC2 image ID to launch"
-}
-
 variable "instance_type" {
   type        = string
   description = "Instance type to launch"

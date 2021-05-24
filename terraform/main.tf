@@ -122,6 +122,53 @@ resource "aws_ecs_cluster" "cluster" {
   tags = module.label.tags
 }
 
+data "aws_iam_policy_document" "ecs_instance_assume_role_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "ecs_instance_role" {
+  name = "${module.label.id}-ecs"
+  assume_role_policy = data.aws_iam_policy_document.ecs_instance_assume_role_policy.json
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_instance_role_policy" {
+  role       = aws_iam_role.ecs_instance_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+}
+
+resource "aws_iam_instance_profile" "ecs_instance_profile" {
+  name = "${module.label.id}-ecs"
+  path = "/"
+  role = aws_iam_role.ecs_instance_role.name
+}
+
+data "aws_ami" "ecs_ami" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn-ami-*-amazon-ecs-optimized"]
+  }
+}
+
+resource "aws_security_group" "egress" {
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}
+
 module "autoscale_group" {
   source               = "git::https://github.com/cloudposse/terraform-aws-ec2-autoscale-group?ref=master"
 
@@ -130,7 +177,7 @@ module "autoscale_group" {
   name                 = var.name
   tags = module.label.tags
 
-  image_id                      = var.image_id
+  image_id                      = data.aws_ami.ecs_ami.image_id
   instance_type                 = var.instance_type
   subnet_ids                    = module.subnets.public_subnet_ids
   health_check_type             = var.health_check_type
@@ -140,11 +187,15 @@ module "autoscale_group" {
   associate_public_ip_address   = true
   user_data_base64              = base64encode(local.userdata)
   metadata_http_tokens_required = true
+  security_group_ids            = [module.vpc.vpc_default_security_group_id, aws_security_group.egress.id]
 
   # Auto-scaling policies and CloudWatch metric alarms
   autoscaling_policies_enabled           = true
   cpu_utilization_high_threshold_percent = var.cpu_utilization_high_threshold_percent
   cpu_utilization_low_threshold_percent  = var.cpu_utilization_low_threshold_percent
+
+  iam_instance_profile_name = aws_iam_instance_profile.ecs_instance_profile.name
+
 
   block_device_mappings = [
     {
@@ -154,7 +205,7 @@ module "autoscale_group" {
       ebs = {
         delete_on_termination = true
         encrypted             = false
-        volume_size           = 8
+        volume_size           = 30
         volume_type           = "gp3"
         iops                  = null
         kms_key_id            = null
@@ -231,7 +282,7 @@ module "ecs_alb_service_task" {
   ecs_cluster_arn                    = aws_ecs_cluster.cluster.arn
   launch_type                        = var.ecs_launch_type
   vpc_id                             = module.vpc.vpc_id
-  security_group_ids                 = [module.vpc.vpc_default_security_group_id]
+  security_group_ids                 = [module.vpc.vpc_default_security_group_id, module.rds_instance.security_group_id]
   subnet_ids                         = module.subnets.public_subnet_ids
   ignore_changes_task_definition     = var.ignore_changes_task_definition
   network_mode                       = var.network_mode

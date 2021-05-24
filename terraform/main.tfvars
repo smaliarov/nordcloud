@@ -113,9 +113,7 @@ max_size = 2
 
 min_size = 1
 
-image_id = "ami-07952635e5a4cdaf1"
-
-instance_type = "t2.micro"
+instance_type = "t3.micro"
 
 cpu_utilization_high_threshold_percent = 80
 
