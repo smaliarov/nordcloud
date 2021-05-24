@@ -10,7 +10,7 @@ name = "nordcloud"
 
 vpc_cidr_block = "10.0.0.0/16"
 
-ecs_launch_type = "FARGATE"
+ecs_launch_type = "EC2"
 
 network_mode = "awsvpc"
 
@@ -34,9 +34,9 @@ task_cpu = 256
 
 container_name = "nordcloud"
 
-container_memory = 256
+container_memory = 512
 
-container_memory_reservation = 128
+container_memory_reservation = 256
 
 container_cpu = 256
 
@@ -75,7 +75,7 @@ environment_variables = [
 
 db_deletion_protection = false
 
-database_name = "test_db"
+database_name = "notejam"
 
 database_user = "admin"
 
@@ -105,4 +105,18 @@ db_apply_immediately = true
 
 db_availability_zone = "subnet_ids"
 
-aws_account_id = "081717584548"
+health_check_type = "EC2"
+
+wait_for_capacity_timeout = "5m"
+
+max_size = 2
+
+min_size = 1
+
+image_id = "ami-07952635e5a4cdaf1"
+
+instance_type = "t2.micro"
+
+cpu_utilization_high_threshold_percent = 80
+
+cpu_utilization_low_threshold_percent = 40

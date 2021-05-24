@@ -19,10 +19,14 @@ locals {
   secrets_json = file("${path.module}/secrets.json")
   secrets = jsondecode(local.secrets_json)
 
+  database_password = local.secrets["database_password"]
+  github_oauth_token      = local.secrets["github_oauth_token"]
+  github_webhooks_token   = local.secrets["github_webhooks_token"]
+
   container_environment = [
     {
-      name  = "db"
-      value = module.rds_instance.instance_endpoint
+      name  = "spring.datasource.url"
+      value = "jdbc:mysql://${module.rds_instance.hostname}:${var.database_port}/${var.database_name}?user=${var.database_user}&password=${local.database_password}"
     },
     {
       name  = "server_port"
@@ -51,7 +55,6 @@ locals {
     }
   ]
 }
-
 
 module "label" {
   source     = "git::https://github.com/cloudposse/terraform-null-label.git?ref=master"
@@ -97,7 +100,7 @@ module "rds_instance" {
   name                 = var.name
   database_name        = var.database_name
   database_user        = var.database_user
-  database_password    = local.secrets["database_password"]
+  database_password    = local.database_password
   database_port        = var.database_port
   multi_az             = var.db_multi_az
   storage_type         = var.db_storage_type
@@ -114,9 +117,62 @@ module "rds_instance" {
   apply_immediately    = var.db_apply_immediately
 }
 
-resource "aws_ecs_cluster" "default" {
+resource "aws_ecs_cluster" "cluster" {
   name = module.label.id
   tags = module.label.tags
+}
+
+module "autoscale_group" {
+  source               = "git::https://github.com/cloudposse/terraform-aws-ec2-autoscale-group?ref=master"
+
+  namespace            = var.namespace
+  stage                = var.stage
+  name                 = var.name
+  tags = module.label.tags
+
+  image_id                      = var.image_id
+  instance_type                 = var.instance_type
+  subnet_ids                    = module.subnets.public_subnet_ids
+  health_check_type             = var.health_check_type
+  min_size                      = var.min_size
+  max_size                      = var.max_size
+  wait_for_capacity_timeout     = var.wait_for_capacity_timeout
+  associate_public_ip_address   = true
+  user_data_base64              = base64encode(local.userdata)
+  metadata_http_tokens_required = true
+
+  # Auto-scaling policies and CloudWatch metric alarms
+  autoscaling_policies_enabled           = true
+  cpu_utilization_high_threshold_percent = var.cpu_utilization_high_threshold_percent
+  cpu_utilization_low_threshold_percent  = var.cpu_utilization_low_threshold_percent
+
+  block_device_mappings = [
+    {
+      device_name  = "/dev/sdb"
+      no_device    = null
+      virtual_name = null
+      ebs = {
+        delete_on_termination = true
+        encrypted             = false
+        volume_size           = 8
+        volume_type           = "gp3"
+        iops                  = null
+        kms_key_id            = null
+        snapshot_id           = null
+      }
+    }
+  ]
+}
+
+# https://www.terraform.io/docs/configuration/expressions.html#string-literals
+locals {
+  userdata = <<-USERDATA
+    #!/bin/bash
+    cat <<'EOF' >> /etc/ecs/ecs.config
+    ECS_CLUSTER=${aws_ecs_cluster.cluster.name}
+    ECS_CONTAINER_INSTANCE_PROPAGATE_TAGS_FROM=ec2_instance
+    EOF
+  USERDATA
 }
 
 module "alb" {
@@ -172,7 +228,7 @@ module "ecs_alb_service_task" {
 
   alb_security_group                 = module.vpc.vpc_default_security_group_id
   container_definition_json          = module.container_definition.json_map_encoded_list
-  ecs_cluster_arn                    = aws_ecs_cluster.default.arn
+  ecs_cluster_arn                    = aws_ecs_cluster.cluster.arn
   launch_type                        = var.ecs_launch_type
   vpc_id                             = module.vpc.vpc_id
   security_group_ids                 = [module.vpc.vpc_default_security_group_id]
@@ -206,8 +262,8 @@ module "ecs_codepipeline" {
   stage                   = var.stage
   name                    = var.name
   region                  = var.region
-  github_oauth_token      = local.secrets["github_oauth_token"]
-  github_webhooks_token   = local.secrets["github_webhooks_token"]
+  github_oauth_token      = local.github_oauth_token
+  github_webhooks_token   = local.github_webhooks_token
   repo_owner              = var.repo_owner
   repo_name               = var.repo_name
   branch                  = var.branch
@@ -221,6 +277,6 @@ module "ecs_codepipeline" {
   webhook_enabled         = var.webhook_enabled
   s3_bucket_force_destroy = var.s3_bucket_force_destroy
   environment_variables   = local.environment_variables
-  ecs_cluster_name        = aws_ecs_cluster.default.name
+  ecs_cluster_name        = aws_ecs_cluster.cluster.name
   service_name            = module.ecs_alb_service_task.service_name
 }
