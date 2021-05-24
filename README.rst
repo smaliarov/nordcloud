@@ -135,6 +135,7 @@ Oh, where do I start...
 - database password should not be stored as an environment variable. It should be stored in Parameter Store or (better) in AWS Secrets Manager (with automatic rotation).
 - there should be at least 2 EC2 instances running at any time. RDS should also run in a cluster mode.
 - EC2 instances created in public subnets. Should be in private.
+- used same port (8080) everywhere
 
 
 =====================

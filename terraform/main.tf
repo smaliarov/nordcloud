@@ -136,6 +136,7 @@ data "aws_iam_policy_document" "ecs_instance_assume_role_policy" {
 resource "aws_iam_role" "ecs_instance_role" {
   name = "${module.label.id}-ecs"
   assume_role_policy = data.aws_iam_policy_document.ecs_instance_assume_role_policy.json
+  tags = module.label.tags
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_instance_role_policy" {
@@ -147,6 +148,7 @@ resource "aws_iam_instance_profile" "ecs_instance_profile" {
   name = "${module.label.id}-ecs"
   path = "/"
   role = aws_iam_role.ecs_instance_role.name
+  tags = module.label.tags
 }
 
 data "aws_ami" "ecs_ami" {
@@ -162,6 +164,9 @@ data "aws_ami" "ecs_ami" {
 resource "aws_security_group" "egress" {
   description = "Allow all outbound traffic"
 
+  name = "${var.name}-outbound"
+  vpc_id = module.vpc.vpc_id
+
   egress {
     from_port        = 0
     to_port          = 0
@@ -169,6 +174,8 @@ resource "aws_security_group" "egress" {
     cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
   }
+
+  tags = module.label.tags
 }
 
 module "autoscale_group" {
@@ -228,13 +235,30 @@ locals {
   USERDATA
 }
 
+resource "aws_security_group" "alb" {
+  description = "Allow connection to ALB port"
+
+  name = "${var.name}-alb"
+  vpc_id = module.vpc.vpc_id
+
+  ingress {
+    from_port        = var.container_port
+    to_port          = var.container_port
+    protocol         = "TCP"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = module.label.tags
+}
+
 module "alb" {
   source                                  = "git::https://github.com/cloudposse/terraform-aws-alb?ref=master"
   namespace                               = var.namespace
   stage                                   = var.stage
   name                                    = var.name
   vpc_id                                  = module.vpc.vpc_id
-  security_group_ids                      = [module.vpc.vpc_default_security_group_id]
+  security_group_ids                      = [module.vpc.vpc_default_security_group_id, aws_security_group.alb.id]
   subnet_ids                              = module.subnets.public_subnet_ids
   internal                                = false
   http_enabled                            = true
@@ -246,8 +270,10 @@ module "alb" {
     enabled = true
     cookie_duration = 60
   }
-  target_group_name = var.name
-  security_group_enabled = false
+  target_group_name                       = var.name
+  security_group_enabled                  = false
+  http_port                               = var.container_port
+  health_check_path = "/health"
 }
 
 module "ecr" {
@@ -279,12 +305,12 @@ module "ecs_alb_service_task" {
   stage                                   = var.stage
   name                                    = var.name
 
-  alb_security_group                 = module.vpc.vpc_default_security_group_id
+  alb_security_group                 = aws_security_group.alb.id
   container_definition_json          = module.container_definition.json_map_encoded_list
   ecs_cluster_arn                    = aws_ecs_cluster.cluster.arn
   launch_type                        = var.ecs_launch_type
   vpc_id                             = module.vpc.vpc_id
-  security_group_ids                 = [module.vpc.vpc_default_security_group_id, module.rds_instance.security_group_id]
+  security_group_ids                 = [module.vpc.vpc_default_security_group_id, module.rds_instance.security_group_id, aws_security_group.alb.id]
   subnet_ids                         = module.subnets.public_subnet_ids
   ignore_changes_task_definition     = var.ignore_changes_task_definition
   network_mode                       = var.network_mode
@@ -296,6 +322,7 @@ module "ecs_alb_service_task" {
   desired_count                      = var.desired_count
   task_memory                        = var.task_memory
   task_cpu                           = var.task_cpu
+  container_port                     = var.container_port
 
 
   ecs_load_balancers                 = [
