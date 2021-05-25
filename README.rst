@@ -16,8 +16,8 @@ The full stack is:
 - `Spring Data <http://projects.spring.io/spring-data/>`_ (Persistence abstraction)
 - `JPA <http://www.oracle.com/technetwork/java/javaee/tech/persistence-jsp-140049.html>`_ (Persistence API)
 - `Hibernate <http://hibernate.org/orm/>`_ (JPA implementation)
-- `Terraform`_ (Infrastructure creation)
-- `AWS CodePipeline`_ (CI/CD)
+- `Terraform <https://www.terraform.io/>`_ (Infrastructure creation)
+- `AWS CodePipeline <https://aws.amazon.com/codepipeline/>`_ (CI/CD)
 
 ==========================
 Installation and launching
@@ -105,6 +105,7 @@ Second, modify main.tfvars if needed. See description of all variables at variab
 
 Third, make a copy of secrets.json.example and name it secrets.json.
 It's a very basic (and somewhat stupid) way of keeping private data (passwords and tokens) out of git.
+You'll need to think of a DB master password and create two GitHub access tokens - repo_hook and repo (can be also one token with two permissions, sure).
 
 Now, you need to be logged in to AWS with some user that will allow you to create all needed infrastructure. For the sake of time, I used an admin user with full access. Never do that on production!
 
@@ -136,14 +137,15 @@ Oh, where do I start...
 - there should be at least 2 EC2 instances running at any time. RDS should also run in a cluster mode.
 - EC2 instances created in public subnets. Should be in private.
 - used same port (8080) everywhere
+- GitHub version 1 action provider is used. It's deprecated, should have used version 2 instead.
 
 
 =====================
 Further improvements
 =====================
 
-0. Of course, fix all shortcuts I've taken.
-1. Separate backend and frontend. You could have nicer frontend with all modern features built with Angular or React. Then backend would be able to serve more requests (because it doesn't need to serve static files like CSS or render HTML).
+1. Of course, fix all shortcuts I've taken.
+2. Separate backend and frontend. You could have nicer frontend with all modern features built with Angular or React. Then backend would be able to serve more requests (because it doesn't need to serve static files like CSS or render HTML).
 For this, you'll need slightly different deployment. I would deploy static files to an S3 bucket, backend would be served from ECS, then put a CloudFront distribution in front.
-2. Extract email sender to a separate service that would get tasks from SQS. It will bring a lot of benefits like lesser load on backend, automatic retries, better visibility of errors there, etc.
-3. Split backend into microservices - note, pad, user.
+3. Extract email sender to a separate service that would get tasks from SQS. It will bring a lot of benefits like lesser load on backend, automatic retries, better visibility of errors there, etc.
+4. Split backend into microservices - note, pad, user.

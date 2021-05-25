@@ -75,6 +75,7 @@ module "vpc" {
   attributes = var.attributes
   cidr_block = var.vpc_cidr_block
   tags       = var.tags
+  enable_default_security_group_with_custom_rules = false
 }
 
 module "subnets" {
@@ -296,6 +297,14 @@ module "container_definition" {
   readonly_root_filesystem     = var.container_readonly_root_filesystem
   environment                  = local.container_environment
   port_mappings                = local.container_port_mappings
+
+  log_configuration = {
+    logDriver = "awslogs"
+    options = {
+        "awslogs-group" = var.name
+        "awslogs-region" = var.region
+      }
+  }
 }
 
 module "ecs_alb_service_task" {
